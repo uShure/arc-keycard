@@ -16,6 +16,29 @@ one `eth_call` to check.
 | Builder profile | https://github.com/uShure |
 | Chain | Arc mainnet (5042) |
 
+**It has been used, not just deployed.** A merchant published a plan, a separate address paid
+for it, and the merchant withdrew the revenue — all on mainnet:
+
+| Step | Transaction |
+|---|---|
+| Deploy | `0xf8d30abe7a9c6fa2812298c000e112a9124769a784ff11846e4fd8c00501ad51` |
+| `createPlan` (1.00 USDC / 30 days) | `0x9d5cebad46723101eace77763cff931b5fa7b4d1d2fc95fd7695ce9fc55cba5d` |
+| `subscribe` (one tx, no approve) | `0x329c014e1dc176af2dfe4cb01521996dd6a0dc125f3213bbbad9eea041f0ac0d` |
+| `withdraw` | `0x2c84d0e51127406c86dfcfc057d09eebdf50c07aa5bb87e645730ce0953485ae` |
+
+Merchant `0x43593D89fBE5E89DBe25a4c4686b07B20f6d9396`, subscriber
+`0x9109F545B7417329fD98c5f3c552BfD68030D96c`. Verifiable without trusting this document:
+
+```bash
+cast call 0x99b9Be4bd5D6aFdCc2241e2Cac1Ccf7B34903988 \
+  "isActive(uint256,address)(bool)" 1 0x9109F545B7417329fD98c5f3c552BfD68030D96c \
+  --rpc-url https://rpc.mainnet.arc.io   # true
+```
+
+Deployment cost 0.022999392 USDC; the whole buy-and-settle loop about 0.0027 USDC in gas.
+Afterwards the contract holds nothing and `withdrawable` is zero for every party — no dust
+stranded.
+
 ---
 
 ## What it does

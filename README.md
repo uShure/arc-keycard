@@ -145,6 +145,33 @@ resource. It re-checks on every request, so expiry needs no cron job and no clea
 The demo page is static and talks to Arc directly, so the gate you see is the real contract
 state, not a server's opinion of it.
 
+### The whole loop, on mainnet, with real money
+
+Not a testnet rehearsal. A merchant published a plan, a different address paid for it, and the
+merchant took the revenue out — every step is a transaction anyone can open:
+
+| Step | Transaction |
+|---|---|
+| Deploy | [`0xf8d30abe…01ad51`](https://explorer.arc.io/tx/0xf8d30abe7a9c6fa2812298c000e112a9124769a784ff11846e4fd8c00501ad51) |
+| `createPlan` — 1.00 USDC / 30 days | [`0x9d5cebad…5cba5d`](https://explorer.arc.io/tx/0x9d5cebad46723101eace77763cff931b5fa7b4d1d2fc95fd7695ce9fc55cba5d) |
+| `subscribe` — one transaction, no approve | [`0x329c014e…f0ac0d`](https://explorer.arc.io/tx/0x329c014e1dc176af2dfe4cb01521996dd6a0dc125f3213bbbad9eea041f0ac0d) |
+| `withdraw` — merchant pulls the revenue | [`0x2c84d0e5…3485ae`](https://explorer.arc.io/tx/0x2c84d0e51127406c86dfcfc057d09eebdf50c07aa5bb87e645730ce0953485ae) |
+
+Merchant `0x43593D89fBE5E89DBe25a4c4686b07B20f6d9396`, subscriber
+`0x9109F545B7417329fD98c5f3c552BfD68030D96c`. Check the result yourself without trusting this
+table:
+
+```bash
+cast call 0x99b9Be4bd5D6aFdCc2241e2Cac1Ccf7B34903988 \
+  "isActive(uint256,address)(bool)" 1 0x9109F545B7417329fD98c5f3c552BfD68030D96c \
+  --rpc-url https://rpc.mainnet.arc.io
+# true
+```
+
+Afterwards the contract holds nothing and `withdrawable` is zero for everyone: no dust
+stranded, no balance left behind. Deployment cost **0.022999392 USDC** and the entire
+buy-and-settle loop cost about **0.0027 USDC** in gas — the dollar itself went to the merchant.
+
 ---
 
 ## Running it
