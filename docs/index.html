@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Keycard — subscription access on Arc</title>
+<style>
+  :root { color-scheme: light dark; --bg:#0f1115; --fg:#e8eaed; --dim:#9aa3ad; --line:#252a32; --ok:#3ddc97; --no:#ff6b6b; --accent:#6ea8fe; }
+  * { box-sizing: border-box; }
+  body { margin:0; padding:24px 16px; background:var(--bg); color:var(--fg);
+         font:15px/1.55 ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif; }
+  main { max-width:680px; margin:0 auto; }
+  h1 { font-size:24px; margin:0 0 6px; letter-spacing:-.015em; }
+  p.sub { color:var(--dim); margin:0 0 26px; }
+  section { border:1px solid var(--line); border-radius:11px; padding:17px; margin-bottom:14px; }
+  h2 { font-size:11px; text-transform:uppercase; letter-spacing:.09em; color:var(--dim); margin:0 0 13px; font-weight:600; }
+  button { font:inherit; padding:9px 15px; border-radius:7px; border:1px solid var(--line);
+           background:#1a1f27; color:var(--fg); cursor:pointer; }
+  button:hover:not(:disabled) { border-color:var(--accent); }
+  button:disabled { opacity:.4; cursor:not-allowed; }
+  button.primary { background:var(--accent); color:#0f1115; border-color:var(--accent); font-weight:600; }
+  code, pre { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:12.5px; }
+  pre { background:#0a0c10; border:1px solid var(--line); border-radius:7px; padding:12px;
+        overflow-x:auto; margin:0; white-space:pre-wrap; word-break:break-word; }
+  .row { display:flex; gap:9px; flex-wrap:wrap; align-items:center; }
+  .kv { display:grid; grid-template-columns:auto 1fr; gap:6px 14px; margin:0 0 14px; }
+  .kv dt { color:var(--dim); white-space:nowrap; } .kv dd { margin:0; word-break:break-all; }
+  .pill { display:inline-block; padding:2px 9px; border-radius:99px; font-size:11px; font-weight:700; letter-spacing:.04em; }
+  .pill.on { background:rgba(61,220,151,.15); color:var(--ok); }
+  .pill.off { background:rgba(255,107,107,.15); color:var(--no); }
+  a { color:var(--accent); }
+  .note { color:var(--dim); font-size:13px; margin:11px 0 0; }
+  .gated { border:1px dashed var(--line); border-radius:8px; padding:15px; text-align:center; color:var(--dim); }
+  .granted { border:1px solid var(--ok); border-radius:8px; padding:15px; background:rgba(61,220,151,.06); }
+</style>
+</head>
+<body>
+<main>
+  <h1>Keycard</h1>
+  <p class="sub">A subscription that lives on Arc mainnet. Pay once, in USDC, in a single transaction — the same asset that pays the gas. The gate below asks the chain, and nothing else.</p>
+
+  <section>
+    <h2>Plan</h2>
+    <dl class="kv" id="cfg"><dd style="grid-column:1/-1;color:var(--dim)">reading Arc mainnet…</dd></dl>
+    <div class="row">
+      <button id="connect" class="primary">Connect wallet</button>
+      <button id="subscribe" disabled>Subscribe</button>
+      <button id="refresh" disabled>Refresh</button>
+    </div>
+    <p class="note" id="msg"></p>
+  </section>
+
+  <section>
+    <h2>Your subscription <span id="pill"></span></h2>
+    <pre id="status">Connect a wallet to check.</pre>
+  </section>
+
+  <section>
+    <h2>The gated resource</h2>
+    <div id="gate" class="gated">Locked. No active Keycard for this address.</div>
+    <p class="note">A server would answer <code>402 Payment Required</code> here. This page is static — it runs the same check in the browser, straight against the RPC. The server-side equivalent is <code>demo/server.js</code> in the repo: one <code>eth_call</code>, no dependencies.</p>
+  </section>
+
+  <p class="note" style="text-align:center">
+    <a href="https://github.com/uShure/arc-keycard" target="_blank" rel="noopener">Source</a> ·
+    <a id="explorerLink" href="https://explorer.arc.io" target="_blank" rel="noopener">Contract on Arcscan</a>
+  </p>
+</main>
+
+<script>
+// Filled in after deployment; ?contract=0x… overrides it for testing.
+const DEFAULT_CONTRACT = "__KEYCARD_ADDRESS__";
+const PLAN_ID = 1n;
+const RPC_URL = "https://rpc.mainnet.arc.io";
+
+const ARC = {
+  chainId: "0x13b2", // 5042
+  chainName: "Arc",
+  nativeCurrency: { name: "USDC", symbol: "USDC", decimals: 18 }, // native is 18dp, not 6
+  rpcUrls: [RPC_URL],
+  blockExplorerUrls: ["https://explorer.arc.io"],
+};
+
+// cast sig
+const SEL = {
+  quote:     "0x315f1a41", // quote(uint256,uint256)
+  isActive:  "0xbab0ac03", // isActive(uint256,address)
+  expiryOf:  "0x13c6209a", // expiryOf(uint256,address)
+  subscribe: "0x84370813", // subscribe(uint256,uint256)
+};
+
+const params = new URLSearchParams(location.search);
+const CONTRACT = (params.get("contract") || DEFAULT_CONTRACT).toLowerCase();
+
+const $ = id => document.getElementById(id);
+const say = t => { $("msg").textContent = t; };
+const pad = h => h.replace(/^0x/, "").toLowerCase().padStart(64, "0");
+const encUint = n => pad(BigInt(n).toString(16));
+const encAddr = a => pad(a);
+
+// 6-decimal USDC is how humans read this money; 18-decimal native is how the chain moves it.
+const fmtUsdc = v => (Number(BigInt(v)) / 1e6).toFixed(2);
+
+let account = null, price = null;
+let rpcId = 0;
+
+async function ethCall(data) {
+  const res = await fetch(RPC_URL, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ jsonrpc: "2.0", id: ++rpcId, method: "eth_call",
+                           params: [{ to: CONTRACT, data }, "latest"] }),
+  });
+  const json = await res.json();
+  if (json.error) throw new Error(json.error.message);
+  return json.result;
+}
+
+async function loadPlan() {
+  if (!/^0x[0-9a-f]{40}$/.test(CONTRACT)) {
+    $("cfg").innerHTML = `<dd style="grid-column:1/-1;color:var(--no)">No contract address configured yet.</dd>`;
+    return;
+  }
+  const raw = (await ethCall(SEL.quote + encUint(PLAN_ID) + encUint(1))).replace(/^0x/, "");
+  price = {
+    native: BigInt("0x" + raw.slice(0, 64)),
+    usdc: BigInt("0x" + raw.slice(64, 128)),
+  };
+  $("explorerLink").href = `https://explorer.arc.io/address/${CONTRACT}`;
+  $("cfg").innerHTML = `
+    <dt>Price</dt><dd>${fmtUsdc(price.usdc)} USDC / 30 days</dd>
+    <dt>As msg.value</dt><dd><code>${price.native}</code> <span style="color:var(--dim)">(18 decimals)</span></dd>
+    <dt>Contract</dt><dd><a href="https://explorer.arc.io/address/${CONTRACT}" target="_blank" rel="noopener"><code>${CONTRACT}</code></a></dd>
+    <dt>Network</dt><dd>Arc mainnet · chain 5042</dd>`;
+}
+
+async function ensureArc() {
+  try {
+    await ethereum.request({ method: "wallet_switchEthereumChain", params: [{ chainId: ARC.chainId }] });
+  } catch (e) {
+    if (e.code === 4902) await ethereum.request({ method: "wallet_addEthereumChain", params: [ARC] });
+    else throw e;
+  }
+}
+
+async function connect() {
+  if (!window.ethereum) return say("No injected wallet found. Install MetaMask or a compatible wallet.");
+  const accounts = await ethereum.request({ method: "eth_requestAccounts" });
+  account = accounts[0];
+  await ensureArc();
+  $("subscribe").disabled = false;
+  $("refresh").disabled = false;
+  $("connect").textContent = account.slice(0, 6) + "…" + account.slice(-4);
+  say("");
+  await refresh();
+}
+
+async function refresh() {
+  if (!account) return;
+  const [activeRaw, expiryRaw] = await Promise.all([
+    ethCall(SEL.isActive + encUint(PLAN_ID) + encAddr(account)),
+    ethCall(SEL.expiryOf + encUint(PLAN_ID) + encAddr(account)),
+  ]);
+  const active = BigInt(activeRaw) === 1n;
+  const expiry = Number(BigInt(expiryRaw));
+  const now = Math.floor(Date.now() / 1000);
+
+  $("status").textContent = JSON.stringify({
+    address: account,
+    active,
+    expiresAt: expiry ? new Date(expiry * 1000).toISOString() : null,
+    secondsRemaining: expiry > now ? expiry - now : 0,
+  }, null, 2);
+
+  $("pill").className = "pill " + (active ? "on" : "off");
+  $("pill").textContent = active ? "active" : "inactive";
+
+  $("gate").className = active ? "granted" : "gated";
+  $("gate").textContent = active
+    ? "Unlocked. The chain says this subscription is live until " + new Date(expiry * 1000).toUTCString() + "."
+    : "Locked. No active Keycard for this address.";
+}
+
+async function subscribe() {
+  try {
+    say("Confirm in your wallet…");
+    await ensureArc();
+    // One transaction. No approve, because the money and the gas are the same asset.
+    const txHash = await ethereum.request({
+      method: "eth_sendTransaction",
+      params: [{
+        from: account,
+        to: CONTRACT,
+        value: "0x" + price.native.toString(16),
+        data: SEL.subscribe + encUint(PLAN_ID) + encUint(1),
+      }],
+    });
+    say("Sent. Arc finalises on inclusion, so this should be quick.");
+
+    for (let i = 0; i < 60; i++) {
+      const receipt = await ethereum.request({ method: "eth_getTransactionReceipt", params: [txHash] });
+      if (receipt) { say(receipt.status === "0x1" ? "Subscribed." : "Transaction reverted."); break; }
+      await new Promise(r => setTimeout(r, 500));
+    }
+    await refresh();
+  } catch (e) {
+    say(e.message ?? String(e));
+  }
+}
+
+$("connect").onclick = () => connect().catch(e => say(e.message ?? String(e)));
+$("subscribe").onclick = subscribe;
+$("refresh").onclick = () => refresh().catch(e => say(e.message ?? String(e)));
+loadPlan().catch(e => say("Could not read the contract: " + e.message));
+</script>
+</body>
+</html>

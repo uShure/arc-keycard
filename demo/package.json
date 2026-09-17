@@ -1,0 +1,15 @@
+{
+  "name": "keycard-demo",
+  "version": "1.0.0",
+  "private": true,
+  "description": "A service gated by a Keycard subscription on Arc mainnet. Zero dependencies.",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "license": "MIT"
+}
