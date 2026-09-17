@@ -9,7 +9,8 @@ one `eth_call` to check.
 
 | Field | Value |
 |---|---|
-| Live deployment | `https://explorer.arc.io/address/<DEPLOYED_ADDRESS>` |
+| Live deployment | https://explorer.arc.io/address/0x99b9Be4bd5D6aFdCc2241e2Cac1Ccf7B34903988 |
+| Contract | `0x99b9Be4bd5D6aFdCc2241e2Cac1Ccf7B34903988` |
 | Demo | https://ushure.github.io/arc-keycard/ |
 | Repo | https://github.com/uShure/arc-keycard |
 | Builder profile | https://github.com/uShure |

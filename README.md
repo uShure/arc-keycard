@@ -137,8 +137,8 @@ resource. It re-checks on every request, so expiry needs no cron job and no clea
 
 | | |
 |---|---|
-| Contract | `<DEPLOYED_ADDRESS>` |
-| Explorer | https://explorer.arc.io/address/`<DEPLOYED_ADDRESS>` |
+| Contract | `0x99b9Be4bd5D6aFdCc2241e2Cac1Ccf7B34903988` |
+| Explorer | https://explorer.arc.io/address/0x99b9Be4bd5D6aFdCc2241e2Cac1Ccf7B34903988 |
 | Demo | https://ushure.github.io/arc-keycard/ |
 | Chain | Arc mainnet, chain ID **5042** |
 
