@@ -2,88 +2,368 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Keycard — subscription access on Arc</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Keycard — access passes settled in USDC on Arc</title>
+<meta name="description" content="Subscription access passes paid in native USDC on Arc mainnet. One transaction to buy, one call to verify.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
-  :root { color-scheme: light dark; --bg:#0f1115; --fg:#e8eaed; --dim:#9aa3ad; --line:#252a32; --ok:#3ddc97; --no:#ff6b6b; --accent:#6ea8fe; }
-  * { box-sizing: border-box; }
-  body { margin:0; padding:24px 16px; background:var(--bg); color:var(--fg);
-         font:15px/1.55 ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif; }
-  main { max-width:680px; margin:0 auto; }
-  h1 { font-size:24px; margin:0 0 6px; letter-spacing:-.015em; }
-  p.sub { color:var(--dim); margin:0 0 26px; }
-  section { border:1px solid var(--line); border-radius:11px; padding:17px; margin-bottom:14px; }
-  h2 { font-size:11px; text-transform:uppercase; letter-spacing:.09em; color:var(--dim); margin:0 0 13px; font-weight:600; }
-  button { font:inherit; padding:9px 15px; border-radius:7px; border:1px solid var(--line);
-           background:#1a1f27; color:var(--fg); cursor:pointer; }
-  button:hover:not(:disabled) { border-color:var(--accent); }
-  button:disabled { opacity:.4; cursor:not-allowed; }
-  button.primary { background:var(--accent); color:#0f1115; border-color:var(--accent); font-weight:600; }
-  code, pre { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:12.5px; }
-  pre { background:#0a0c10; border:1px solid var(--line); border-radius:7px; padding:12px;
-        overflow-x:auto; margin:0; white-space:pre-wrap; word-break:break-word; }
-  .row { display:flex; gap:9px; flex-wrap:wrap; align-items:center; }
-  .kv { display:grid; grid-template-columns:auto 1fr; gap:6px 14px; margin:0 0 14px; }
-  .kv dt { color:var(--dim); white-space:nowrap; } .kv dd { margin:0; word-break:break-all; }
-  .pill { display:inline-block; padding:2px 9px; border-radius:99px; font-size:11px; font-weight:700; letter-spacing:.04em; }
-  .pill.on { background:rgba(61,220,151,.15); color:var(--ok); }
-  .pill.off { background:rgba(255,107,107,.15); color:var(--no); }
-  a { color:var(--accent); }
-  .note { color:var(--dim); font-size:13px; margin:11px 0 0; }
-  .gated { border:1px dashed var(--line); border-radius:8px; padding:15px; text-align:center; color:var(--dim); }
-  .granted { border:1px solid var(--ok); border-radius:8px; padding:15px; background:rgba(61,220,151,.06); }
+:root {
+  --paper:      #faf9f7;
+  --ink:        #15171a;
+  --ink-soft:   #4a4f56;
+  --ink-mute:   #8b9097;
+  --rule:       #e4e1db;
+  --rule-firm:  #cdc9c1;
+  --field:      #ffffff;
+  --valid:      #0a6b4a;
+  --valid-bg:   #eef6f2;
+  --denied:     #9c3412;
+  --denied-bg:  #f8f0ec;
+  --sans: "IBM Plex Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --paper:     #101114;
+    --ink:       #eceae5;
+    --ink-soft:  #b0b4ba;
+    --ink-mute:  #7d828a;
+    --rule:      #2c3036;
+    --rule-firm: #454a52;
+    --field:     #1a1d22;
+    --valid:     #4cbf92;
+    --valid-bg:  #11201b;
+    --denied:    #e0805e;
+    --denied-bg: #211714;
+  }
+}
+
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-weight: 400;
+  font-size: 16px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+a { color: inherit; text-decoration: none; border-bottom: 1px solid var(--rule-firm); }
+a:hover { border-bottom-color: currentColor; }
+.mono { font-family: var(--mono); font-size: .8125rem; letter-spacing: -.01em; }
+.tnum { font-variant-numeric: tabular-nums; }
+
+.wrap {
+  max-width: 68rem;
+  margin: 0 auto;
+  padding: 0 clamp(1.25rem, 5vw, 4rem);
+}
+
+/* ---------- masthead ---------- */
+.masthead {
+  border-bottom: 1px solid var(--rule);
+  padding-top: clamp(1.75rem, 5vw, 3.25rem);
+  padding-bottom: 1.125rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: .5rem 1.75rem;
+}
+.wordmark {
+  font-size: .875rem;
+  font-weight: 600;
+  letter-spacing: .2em;
+  text-transform: uppercase;
+  margin: 0;
+}
+.masthead p { margin: 0; color: var(--ink-soft); font-size: .9375rem; }
+.net {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  font-family: var(--mono);
+  font-size: .75rem;
+  color: var(--ink-mute);
+  white-space: nowrap;
+}
+.pulse {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--valid);
+  box-shadow: 0 0 0 0 color-mix(in srgb, var(--valid) 55%, transparent);
+  animation: pulse 2.6s ease-out infinite;
+}
+@keyframes pulse {
+  0%   { box-shadow: 0 0 0 0 color-mix(in srgb, var(--valid) 55%, transparent); }
+  70%  { box-shadow: 0 0 0 7px transparent; }
+  100% { box-shadow: 0 0 0 0 transparent; }
+}
+@media (prefers-reduced-motion: reduce) { .pulse { animation: none; } }
+
+/* ---------- lede ---------- */
+.lede { padding: clamp(2.5rem, 7vw, 4.5rem) 0 clamp(2rem, 5vw, 3.25rem); max-width: 46rem; }
+.lede h1 {
+  margin: 0 0 1rem;
+  font-size: clamp(2rem, 5.4vw, 3.4rem);
+  font-weight: 300;
+  line-height: 1.08;
+  letter-spacing: -.028em;
+}
+.lede h1 em { font-style: normal; font-weight: 500; }
+.lede p { margin: 0; font-size: clamp(1rem, 1.7vw, 1.1875rem); color: var(--ink-soft); max-width: 36rem; }
+
+/* ---------- columns ---------- */
+.columns {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+  gap: clamp(2rem, 5vw, 4rem);
+  align-items: start;
+  padding-bottom: clamp(2.5rem, 5vw, 3.5rem);
+}
+@media (max-width: 800px) { .columns { grid-template-columns: 1fr; gap: 2.75rem; } }
+/* The pass travels with the specification it belongs to, so the right-hand
+   column does not run out halfway down and leave a hole. */
+@media (min-width: 801px) { .pass { position: sticky; top: clamp(1.5rem, 4vw, 2.5rem); } }
+
+.label {
+  font-size: .6875rem;
+  font-weight: 500;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--ink-mute);
+  margin: 0 0 1.125rem;
+}
+
+/* ---------- plan ---------- */
+.plan h2 {
+  margin: 0 0 .375rem;
+  font-size: 1.5rem;
+  font-weight: 500;
+  letter-spacing: -.015em;
+}
+.price {
+  display: flex;
+  align-items: baseline;
+  gap: .5rem;
+  margin: 1.5rem 0 .25rem;
+}
+.price .figure { font-size: clamp(2.5rem, 6vw, 3.5rem); font-weight: 300; letter-spacing: -.035em; line-height: 1; }
+.price .unit { font-size: 1rem; font-weight: 500; color: var(--ink-soft); }
+.price .per { font-size: .9375rem; color: var(--ink-mute); }
+
+.spec { margin: 2rem 0 0; border-top: 1px solid var(--rule); }
+.spec div {
+  display: grid;
+  grid-template-columns: 9.5rem minmax(0, 1fr);
+  gap: 1rem;
+  padding: .8125rem 0;
+  border-bottom: 1px solid var(--rule);
+}
+@media (max-width: 540px) { .spec div { grid-template-columns: 1fr; gap: .1875rem; } }
+.spec dt { color: var(--ink-mute); font-size: .8125rem; }
+.spec dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+
+.actions { display: flex; flex-wrap: wrap; gap: .625rem; margin-top: 2rem; }
+.btn {
+  font: inherit;
+  font-size: .875rem;
+  font-weight: 500;
+  padding: .6875rem 1.25rem;
+  border-radius: 3px;
+  border: 1px solid var(--rule-firm);
+  background: transparent;
+  color: var(--ink);
+  cursor: pointer;
+  transition: background .12s ease, border-color .12s ease, opacity .12s ease;
+}
+.btn:hover:not(:disabled) { border-color: var(--ink); }
+.btn:disabled { opacity: .38; cursor: not-allowed; }
+.btn--solid { background: var(--ink); border-color: var(--ink); color: var(--paper); }
+.btn--solid:hover:not(:disabled) { opacity: .86; }
+.btn:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+
+.msg { margin: 1rem 0 0; font-size: .875rem; color: var(--ink-soft); min-height: 1.3em; }
+.msg[data-tone="bad"] { color: var(--denied); }
+
+/* ---------- the pass ---------- */
+.pass {
+  background: var(--field);
+  border: 1px solid var(--rule);
+  border-left: 3px solid var(--rule-firm);
+  border-radius: 3px;
+  padding: 1.5rem 1.5rem 1.375rem;
+}
+.pass[data-state="valid"] { border-left-color: var(--valid); background: var(--valid-bg); }
+.pass[data-state="denied"] { border-left-color: var(--denied); }
+.pass__top {
+  display: flex; justify-content: space-between; align-items: baseline;
+  gap: 1rem; padding-bottom: 1rem; border-bottom: 1px solid var(--rule);
+}
+.pass__state { font-size: .6875rem; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; }
+[data-state="valid"] .pass__state { color: var(--valid); }
+[data-state="denied"] .pass__state { color: var(--denied); }
+[data-state="idle"] .pass__state { color: var(--ink-mute); }
+.pass__id { font-family: var(--mono); font-size: .75rem; color: var(--ink-mute); }
+.pass__rows { margin: 0; padding-top: .25rem; }
+.pass__rows div { display: flex; justify-content: space-between; gap: 1rem; padding: .625rem 0; }
+.pass__rows dt { color: var(--ink-mute); font-size: .8125rem; }
+.pass__rows dd { margin: 0; text-align: right; overflow-wrap: anywhere; }
+.countdown { font-size: 1.125rem; font-weight: 500; letter-spacing: -.01em; }
+/* Before a wallet is connected the values are absent, not zero. Say so quietly
+   instead of parading dashes that read as a rendering fault. */
+.pass[data-state="idle"] .pass__rows dd { color: var(--ink-mute); font-weight: 400; font-size: .875rem; }
+.pass[data-state="idle"] .countdown { font-size: .875rem; }
+
+/* ---------- gate ---------- */
+.gate { border-top: 1px solid var(--rule); padding: clamp(2.5rem, 6vw, 4rem) 0 clamp(3rem, 7vw, 4.5rem); }
+.gate__grid { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: clamp(2rem, 5vw, 4.5rem); align-items: start; }
+@media (max-width: 800px) { .gate__grid { grid-template-columns: 1fr; gap: 2rem; } }
+.gate h2 { margin: 0 0 .75rem; font-size: 1.25rem; font-weight: 500; letter-spacing: -.012em; }
+.gate p { margin: 0 0 .75rem; color: var(--ink-soft); font-size: .9375rem; max-width: 34rem; }
+.response {
+  font-family: var(--mono);
+  font-size: .8125rem;
+  line-height: 1.65;
+  background: var(--field);
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  padding: 1.125rem 1.25rem;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  margin: 0;
+}
+.response .status { font-weight: 500; }
+[data-state="valid"] .status { color: var(--valid); }
+[data-state="denied"] .status { color: var(--denied); }
+.response .dim { color: var(--ink-mute); }
+
+/* ---------- colophon ---------- */
+.colophon {
+  border-top: 1px solid var(--rule);
+  padding: 1.5rem 0 clamp(2.5rem, 5vw, 3.5rem);
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: .5rem 2rem;
+  font-size: .8125rem; color: var(--ink-mute);
+}
+.colophon .mono { font-size: .75rem; color: var(--ink-soft); overflow-wrap: anywhere; }
+.colophon a { border-bottom-color: var(--rule); }
 </style>
 </head>
 <body>
-<main>
-  <h1>Keycard</h1>
-  <p class="sub">A subscription that lives on Arc mainnet. Pay once, in USDC, in a single transaction — the same asset that pays the gas. The gate below asks the chain, and nothing else.</p>
 
-  <section>
-    <h2>Plan</h2>
-    <dl class="kv" id="cfg"><dd style="grid-column:1/-1;color:var(--dim)">reading Arc mainnet…</dd></dl>
-    <div class="row">
-      <button id="connect" class="primary">Connect wallet</button>
-      <button id="subscribe" disabled>Subscribe</button>
-      <button id="refresh" disabled>Refresh</button>
+<div class="wrap">
+  <header class="masthead">
+    <h1 class="wordmark">Keycard</h1>
+    <p>Access passes for services, settled on Arc.</p>
+    <div class="net"><span class="pulse" aria-hidden="true"></span> Arc mainnet · block <span id="block" class="tnum">—</span></div>
+  </header>
+
+  <div class="lede">
+    <h1>A subscription that is not a row in a database, but <em>a fact on a chain.</em></h1>
+    <p>The merchant publishes a plan. You pay once, in dollars, in a single transaction. The service asks the chain whether to let you in, and nothing else.</p>
+  </div>
+
+  <div class="columns">
+    <section class="plan">
+      <p class="label">The plan</p>
+      <h2 id="planName">Demo access pass</h2>
+      <div class="price">
+        <span class="figure tnum" id="priceFigure">—</span>
+        <span class="unit">USDC</span>
+        <span class="per" id="pricePer">every 30 days</span>
+      </div>
+      <dl class="spec">
+        <div>
+          <dt>Sent as msg.value</dt>
+          <dd class="mono tnum" id="nativeValue">—</dd>
+        </div>
+        <div>
+          <dt>Why that number</dt>
+          <dd>On Arc, USDC is the native token at 18 decimals and an ERC&#8209;20 at 6. Same balance, two readings, a factor of 10<sup>12</sup> apart.</dd>
+        </div>
+        <div>
+          <dt>Settlement</dt>
+          <dd>One transaction. No token approval, because the money and the gas are the same asset.</dd>
+        </div>
+      </dl>
+
+      <div class="actions">
+        <button id="connect" class="btn btn--solid">Connect wallet</button>
+        <button id="subscribe" class="btn" disabled>Subscribe</button>
+        <button id="refresh" class="btn" disabled>Re-check</button>
+      </div>
+      <p class="msg" id="msg"></p>
+    </section>
+
+    <aside class="pass" id="pass" data-state="idle">
+      <p class="label" style="margin-bottom:1rem">Your pass</p>
+      <div class="pass__top">
+        <span class="pass__state" id="passState">No wallet connected</span>
+        <span class="pass__id" id="passId">plan 01</span>
+      </div>
+      <dl class="pass__rows">
+        <div>
+          <dt>Holder</dt>
+          <dd class="mono" id="holder">—</dd>
+        </div>
+        <div>
+          <dt>Valid until</dt>
+          <dd class="tnum" id="validUntil">—</dd>
+        </div>
+        <div>
+          <dt>Time remaining</dt>
+          <dd class="countdown tnum" id="remaining">—</dd>
+        </div>
+      </dl>
+    </aside>
+  </div>
+
+  <section class="gate" id="gate" data-state="idle">
+    <div class="gate__grid">
+      <div>
+        <p class="label">The gate</p>
+        <h2>What a service would answer</h2>
+        <p>This page is static. It runs the same check a server would run, straight against the RPC, and the answer below is the real contract state rather than a mock.</p>
+        <p>The server-side equivalent is <a href="https://github.com/uShure/arc-keycard/blob/main/demo/server.js" target="_blank" rel="noopener">demo/server.js</a>: one <code class="mono">eth_call</code>, no dependencies.</p>
+      </div>
+      <pre class="response" id="response"><span class="status">HTTP/1.1 402 Payment Required</span>
+<span class="dim">content-type: application/json</span>
+
+{
+  "error": "no active pass",
+  "plan": 1
+}</pre>
     </div>
-    <p class="note" id="msg"></p>
   </section>
 
-  <section>
-    <h2>Your subscription <span id="pill"></span></h2>
-    <pre id="status">Connect a wallet to check.</pre>
-  </section>
-
-  <section>
-    <h2>The gated resource</h2>
-    <div id="gate" class="gated">Locked. No active Keycard for this address.</div>
-    <p class="note">A server would answer <code>402 Payment Required</code> here. This page is static — it runs the same check in the browser, straight against the RPC. The server-side equivalent is <code>demo/server.js</code> in the repo: one <code>eth_call</code>, no dependencies.</p>
-  </section>
-
-  <p class="note" style="text-align:center">
-    <a href="https://github.com/uShure/arc-keycard" target="_blank" rel="noopener">Source</a> ·
-    <a id="explorerLink" href="https://explorer.arc.io" target="_blank" rel="noopener">Contract on Arcscan</a>
-  </p>
-</main>
+  <footer class="colophon">
+    <span>Contract <a class="mono" id="explorerLink" href="https://explorer.arc.io" target="_blank" rel="noopener">—</a></span>
+    <span>Arc mainnet · chain 5042</span>
+    <a href="https://github.com/uShure/arc-keycard" target="_blank" rel="noopener">Source</a>
+    <span>MIT</span>
+  </footer>
+</div>
 
 <script>
-// Filled in after deployment; ?contract=0x… overrides it for testing.
+const RPC_URL = "https://rpc.mainnet.arc.io";
 const DEFAULT_CONTRACT = "0x99b9Be4bd5D6aFdCc2241e2Cac1Ccf7B34903988";
 const PLAN_ID = 1n;
-const RPC_URL = "https://rpc.mainnet.arc.io";
 
 const ARC = {
   chainId: "0x13b2", // 5042
   chainName: "Arc",
-  nativeCurrency: { name: "USDC", symbol: "USDC", decimals: 18 }, // native is 18dp, not 6
+  nativeCurrency: { name: "USDC", symbol: "USDC", decimals: 18 },
   rpcUrls: [RPC_URL],
   blockExplorerUrls: ["https://explorer.arc.io"],
 };
 
-// cast sig
+// Selectors produced with `cast sig`; hand-encoding keeps this page dependency-free.
 const SEL = {
   quote:     "0x315f1a41", // quote(uint256,uint256)
+  getPlan:   "0x26cd5274", // getPlan(uint256)
   isActive:  "0xbab0ac03", // isActive(uint256,address)
   expiryOf:  "0x13c6209a", // expiryOf(uint256,address)
   subscribe: "0x84370813", // subscribe(uint256,uint256)
@@ -92,67 +372,106 @@ const SEL = {
 const params = new URLSearchParams(location.search);
 const CONTRACT = (params.get("contract") || DEFAULT_CONTRACT).toLowerCase();
 
-const $ = id => document.getElementById(id);
-const say = t => { $("msg").textContent = t; };
-const pad = h => h.replace(/^0x/, "").toLowerCase().padStart(64, "0");
-const encUint = n => pad(BigInt(n).toString(16));
-const encAddr = a => pad(a);
+const $ = (id) => document.getElementById(id);
+const pad = (h) => h.replace(/^0x/, "").toLowerCase().padStart(64, "0");
+const encUint = (n) => pad(BigInt(n).toString(16));
+const encAddr = (a) => pad(a);
+const short = (a) => a.slice(0, 6) + "…" + a.slice(-4);
 
-// 6-decimal USDC is how humans read this money; 18-decimal native is how the chain moves it.
-const fmtUsdc = v => (Number(BigInt(v)) / 1e6).toFixed(2);
+function say(text, tone) {
+  const el = $("msg");
+  el.textContent = text || "";
+  if (tone) el.dataset.tone = tone; else delete el.dataset.tone;
+}
 
-let account = null, price = null;
 let rpcId = 0;
-
-async function ethCall(data) {
+async function rpc(method, params) {
   const res = await fetch(RPC_URL, {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ jsonrpc: "2.0", id: ++rpcId, method: "eth_call",
-                           params: [{ to: CONTRACT, data }, "latest"] }),
+    body: JSON.stringify({ jsonrpc: "2.0", id: ++rpcId, method, params }),
   });
   const json = await res.json();
   if (json.error) throw new Error(json.error.message);
   return json.result;
 }
+const ethCall = (data) => rpc("eth_call", [{ to: CONTRACT, data }, "latest"]);
+
+let account = null;
+let price = null;
+
+/* ---------- reads ---------- */
+
+async function loadBlock() {
+  try {
+    const n = Number(BigInt(await rpc("eth_blockNumber", [])));
+    $("block").textContent = n.toLocaleString("en-US");
+  } catch { $("block").textContent = "unreachable"; }
+}
+
+/* getPlan returns a tuple carrying a string, so the response is a dynamic tuple:
+   one head word pointing at the body, then merchant, price, period, active, and
+   an offset to the name measured from the start of that body. */
+function decodePlan(hex) {
+  const raw = hex.replace(/^0x/, "");
+  const word = (i) => raw.slice(i * 64, (i + 1) * 64);
+  const num = (i) => BigInt("0x" + word(i));
+  const base = Number(num(0)) / 32;
+
+  const nameAt = base + Number(num(base + 4)) / 32;
+  const nameLen = Number(num(nameAt));
+  const nameHex = raw.slice((nameAt + 1) * 64, (nameAt + 1) * 64 + nameLen * 2);
+  const name = decodeURIComponent(nameHex.replace(/../g, (b) => "%" + b));
+
+  return {
+    merchant: "0x" + word(base).slice(24),
+    priceUsdc: num(base + 1),
+    period: Number(num(base + 2)),
+    active: num(base + 3) === 1n,
+    name,
+  };
+}
+
+function periodLabel(seconds) {
+  const d = seconds / 86400;
+  if (Number.isInteger(d)) return `every ${d} ${d === 1 ? "day" : "days"}`;
+  const h = Math.round(seconds / 3600);
+  return `every ${h} ${h === 1 ? "hour" : "hours"}`;
+}
 
 async function loadPlan() {
-  if (!/^0x[0-9a-f]{40}$/.test(CONTRACT)) {
-    $("cfg").innerHTML = `<dd style="grid-column:1/-1;color:var(--no)">No contract address configured yet.</dd>`;
-    return;
-  }
-  const raw = (await ethCall(SEL.quote + encUint(PLAN_ID) + encUint(1))).replace(/^0x/, "");
+  // Everything on this page comes from the chain, including the plan's own name.
+  const [quoteHex, planHex] = await Promise.all([
+    ethCall(SEL.quote + encUint(PLAN_ID) + encUint(1)),
+    ethCall(SEL.getPlan + encUint(PLAN_ID)),
+  ]);
+
+  const raw = quoteHex.replace(/^0x/, "");
   price = {
     native: BigInt("0x" + raw.slice(0, 64)),
     usdc: BigInt("0x" + raw.slice(64, 128)),
   };
-  $("explorerLink").href = `https://explorer.arc.io/address/${CONTRACT}`;
-  $("cfg").innerHTML = `
-    <dt>Price</dt><dd>${fmtUsdc(price.usdc)} USDC / 30 days</dd>
-    <dt>As msg.value</dt><dd><code>${price.native}</code> <span style="color:var(--dim)">(18 decimals)</span></dd>
-    <dt>Contract</dt><dd><a href="https://explorer.arc.io/address/${CONTRACT}" target="_blank" rel="noopener"><code>${CONTRACT}</code></a></dd>
-    <dt>Network</dt><dd>Arc mainnet · chain 5042</dd>`;
+  const plan = decodePlan(planHex);
+
+  $("planName").textContent = plan.name;
+  $("priceFigure").textContent = (Number(price.usdc) / 1e6).toFixed(2);
+  $("pricePer").textContent = periodLabel(plan.period);
+  $("nativeValue").textContent = price.native.toString();
+  $("passId").textContent = "plan " + String(PLAN_ID).padStart(2, "0");
+  $("explorerLink").textContent = CONTRACT;
+  $("explorerLink").href = "https://explorer.arc.io/address/" + CONTRACT;
+
+  if (!plan.active) say("This plan is closed to new subscriptions.", "bad");
 }
 
-async function ensureArc() {
-  try {
-    await ethereum.request({ method: "wallet_switchEthereumChain", params: [{ chainId: ARC.chainId }] });
-  } catch (e) {
-    if (e.code === 4902) await ethereum.request({ method: "wallet_addEthereumChain", params: [ARC] });
-    else throw e;
-  }
-}
-
-async function connect() {
-  if (!window.ethereum) return say("No injected wallet found. Install MetaMask or a compatible wallet.");
-  const accounts = await ethereum.request({ method: "eth_requestAccounts" });
-  account = accounts[0];
-  await ensureArc();
-  $("subscribe").disabled = false;
-  $("refresh").disabled = false;
-  $("connect").textContent = account.slice(0, 6) + "…" + account.slice(-4);
-  say("");
-  await refresh();
+function humanise(seconds) {
+  if (seconds <= 0) return "none";
+  const d = Math.floor(seconds / 86400);
+  const h = Math.floor((seconds % 86400) / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  if (d > 0) return `${d} ${d === 1 ? "day" : "days"}, ${h} ${h === 1 ? "hour" : "hours"}`;
+  if (h > 0) return `${h} ${h === 1 ? "hour" : "hours"}, ${m} min`;
+  return `${m} min`;
 }
 
 async function refresh() {
@@ -164,28 +483,60 @@ async function refresh() {
   const active = BigInt(activeRaw) === 1n;
   const expiry = Number(BigInt(expiryRaw));
   const now = Math.floor(Date.now() / 1000);
+  const left = expiry > now ? expiry - now : 0;
 
-  $("status").textContent = JSON.stringify({
-    address: account,
-    active,
-    expiresAt: expiry ? new Date(expiry * 1000).toISOString() : null,
-    secondsRemaining: expiry > now ? expiry - now : 0,
-  }, null, 2);
+  $("holder").textContent = short(account);
+  $("holder").title = account;
+  $("validUntil").textContent = expiry
+    ? new Date(expiry * 1000).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })
+    : "—";
+  $("remaining").textContent = humanise(left);
 
-  $("pill").className = "pill " + (active ? "on" : "off");
-  $("pill").textContent = active ? "active" : "inactive";
+  const state = active ? "valid" : "denied";
+  $("pass").dataset.state = state;
+  $("passState").textContent = active ? "Active" : "No active pass";
+  $("gate").dataset.state = state;
 
-  $("gate").className = active ? "granted" : "gated";
-  $("gate").textContent = active
-    ? "Unlocked. The chain says this subscription is live until " + new Date(expiry * 1000).toUTCString() + "."
-    : "Locked. No active Keycard for this address.";
+  $("response").innerHTML = active
+    ? `<span class="status">HTTP/1.1 200 OK</span>\n<span class="dim">content-type: application/json</span>\n\n{\n  "granted": true,\n  "holder": "${account}",\n  "expires": "${new Date(expiry * 1000).toISOString()}"\n}`
+    : `<span class="status">HTTP/1.1 402 Payment Required</span>\n<span class="dim">content-type: application/json</span>\n\n{\n  "error": "no active pass",\n  "plan": 1\n}`;
+
+  loadBlock();
+}
+
+/* ---------- writes ---------- */
+
+async function ensureArc() {
+  try {
+    await ethereum.request({ method: "wallet_switchEthereumChain", params: [{ chainId: ARC.chainId }] });
+  } catch (e) {
+    if (e.code === 4902) await ethereum.request({ method: "wallet_addEthereumChain", params: [ARC] });
+    else throw e;
+  }
+}
+
+async function connect() {
+  if (!window.ethereum) {
+    return say("No browser wallet detected. MetaMask, Rabby or any EVM wallet will do.", "bad");
+  }
+  say("Waiting for the wallet…");
+  const accounts = await ethereum.request({ method: "eth_requestAccounts" });
+  account = accounts[0];
+  await ensureArc();
+  $("connect").textContent = short(account);
+  $("subscribe").disabled = false;
+  $("refresh").disabled = false;
+  say("");
+  await refresh();
 }
 
 async function subscribe() {
+  if (!price) return say("The plan has not loaded yet.", "bad");
+  const btn = $("subscribe");
   try {
-    say("Confirm in your wallet…");
+    btn.disabled = true;
     await ensureArc();
-    // One transaction. No approve, because the money and the gas are the same asset.
+    say("Confirm the transaction in your wallet.");
     const txHash = await ethereum.request({
       method: "eth_sendTransaction",
       params: [{
@@ -195,23 +546,50 @@ async function subscribe() {
         data: SEL.subscribe + encUint(PLAN_ID) + encUint(1),
       }],
     });
-    say("Sent. Arc finalises on inclusion, so this should be quick.");
+    say("Submitted. Arc settles on inclusion, so this takes a moment.");
 
     for (let i = 0; i < 60; i++) {
       const receipt = await ethereum.request({ method: "eth_getTransactionReceipt", params: [txHash] });
-      if (receipt) { say(receipt.status === "0x1" ? "Subscribed." : "Transaction reverted."); break; }
-      await new Promise(r => setTimeout(r, 500));
+      if (receipt) {
+        say(receipt.status === "0x1" ? "Paid. The pass is live." : "The transaction reverted.", receipt.status === "0x1" ? null : "bad");
+        break;
+      }
+      await new Promise((r) => setTimeout(r, 500));
     }
     await refresh();
   } catch (e) {
-    say(e.message ?? String(e));
+    say(e.message || String(e), "bad");
+  } finally {
+    btn.disabled = !account;
   }
 }
 
-$("connect").onclick = () => connect().catch(e => say(e.message ?? String(e)));
-$("subscribe").onclick = subscribe;
-$("refresh").onclick = () => refresh().catch(e => say(e.message ?? String(e)));
-loadPlan().catch(e => say("Could not read the contract: " + e.message));
+/* ---------- wiring ---------- */
+
+$("connect").addEventListener("click", () => connect().catch((e) => say(e.message || String(e), "bad")));
+$("subscribe").addEventListener("click", subscribe);
+$("refresh").addEventListener("click", () => refresh().catch((e) => say(e.message || String(e), "bad")));
+
+if (window.ethereum) {
+  ethereum.on?.("accountsChanged", (accs) => {
+    account = accs[0] || null;
+    if (!account) {
+      $("connect").textContent = "Connect wallet";
+      $("subscribe").disabled = true;
+      $("refresh").disabled = true;
+      $("pass").dataset.state = "idle";
+      $("passState").textContent = "No wallet connected";
+      $("holder").textContent = "—";
+    } else {
+      $("connect").textContent = short(account);
+      refresh();
+    }
+  });
+}
+
+loadBlock();
+loadPlan().catch((e) => say("Could not read the contract: " + e.message, "bad"));
+setInterval(loadBlock, 12000);
 </script>
 </body>
 </html>
